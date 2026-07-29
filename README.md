@@ -2,6 +2,8 @@
 
 Production tracking for ZdZd → 4l Run 3 background Ntuples (mc23, p7266 DAOD_PHYS).
 
+**Status page:** <https://rsamconn.github.io/ZdZd_R3_production/>
+
 The tracker is a set of per-process CSVs in `data/` (one per physics process,
 listed in `data/manifest.json`). `index.html` is a static status page that
 renders them, served via GitHub Pages. This repo is the single source of truth —
@@ -10,6 +12,8 @@ update the CSVs (normally via `update_tracker.py`), commit, push.
 ## Workflow (on lxplus)
 
 ```bash
+# once:
+git clone https://github.com/rsamconn/ZdZd_R3_production.git
 # 1. After grid submission (task ID printed by the submit script):
 python3 update_tracker.py submit --dsid 601634 --campaign mc23d \
     --job-id 45123678 --output-dataset user.<user>.601634.mc23d.p7266.v1 \
@@ -35,9 +39,8 @@ just keep the header row intact.
 
 ## Status page (GitHub Pages)
 
-Enable once: repo **Settings → Pages → Deploy from a branch → `main` / (root)**.
-The page then lives at `https://<username>.github.io/ZdZd_R3_production/` and
-updates automatically ~a minute after each push.
+Live at <https://rsamconn.github.io/ZdZd_R3_production/> — updates
+automatically ~a minute after each push to `main`.
 
 Preview locally: `python3 -m http.server` in the repo root, then open
 <http://localhost:8000> (opening `index.html` directly won't work — `fetch` of
@@ -48,7 +51,7 @@ the CSVs needs a server).
 In a Google Sheet, one tab per process:
 
 ```
-=IMPORTDATA("https://raw.githubusercontent.com/<username>/ZdZd_R3_production/main/data/H_ZZ_4l.csv")
+=IMPORTDATA("https://raw.githubusercontent.com/rsamconn/ZdZd_R3_production/main/data/H_ZZ_4l.csv")
 ```
 
 Google refreshes IMPORTDATA roughly hourly. This mirror is a convenience view;
