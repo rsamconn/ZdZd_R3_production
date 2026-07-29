@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZdZd Run 3 — mc23 p7266 Ntuple production</title>
+<style>
+  :root {
+    --bg: #f6f8fa; --card: #ffffff; --text: #1f2328; --muted: #656d76;
+    --border: #d0d7de; --accent: #0969da;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+         background: var(--bg); color: var(--text); }
+  .wrap { max-width: 1500px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .summary { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px; }
+  .pill { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+          padding: 8px 14px; }
+  .pill b { font-size: 18px; display: block; }
+  details { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+            margin-bottom: 14px; overflow: hidden; }
+  summary { cursor: pointer; padding: 10px 14px; font-weight: 600; display: flex;
+            align-items: center; gap: 12px; flex-wrap: wrap; }
+  summary::-webkit-details-marker { display: none; }
+  .bar { flex: 1; min-width: 160px; height: 8px; background: #eaeef2; border-radius: 4px;
+         overflow: hidden; }
+  .bar div { height: 100%; background: #2da44e; }
+  .frac { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .tblwrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { border-top: 1px solid var(--border); padding: 5px 9px; text-align: left;
+           white-space: nowrap; }
+  th { background: #f6f8fa; font-weight: 600; position: sticky; top: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+  .status { padding: 1px 8px; border-radius: 10px; font-size: 11.5px; font-weight: 600; }
+  .s-notsubmitted { background: #eaeef2; color: #57606a; }
+  .s-submitted    { background: #ddf4ff; color: #0969da; }
+  .s-running      { background: #fff8c5; color: #7d4e00; }
+  .s-finished     { background: #ddf4ff; color: #0550ae; }
+  .s-failed       { background: #ffebe9; color: #cf222e; }
+  .s-downloaded   { background: #fbefff; color: #8250df; }
+  .s-merged       { background: #d2f4d3; color: #1a7f37; }
+  .s-done         { background: #2da44e; color: #ffffff; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .updated { color: var(--muted); font-size: 12px; margin-top: 24px; }
+  .err { background: #ffebe9; border: 1px solid #cf222e; padding: 12px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">mc23 p7266 background Ntuple production</h1>
+  <div class="sub">ZdZd &rarr; 4l Run 3 analysis &mdash; background Ntuple status.
+    One table per physics process; rows are input DAOD_PHYS datasets.
+    Data lives in <a href="data/">data/*.csv</a>, updated by
+    <code>update_tracker.py</code> on lxplus.</div>
+  <div class="summary" id="summary"></div>
+  <div id="tables"></div>
+  <div class="updated" id="updated"></div>
+</div>
+<script>
+"use strict";
+
+// Minimal RFC-4180-ish CSV parser (handles quoted fields with commas/quotes).
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false;
+      } else field += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === ",") { row.push(field); field = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else field += ch;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+const SHOW = ["DSID", "Physics_identifier", "MC_campaign", "Files", "Size [GB]",
+  "Events [k]", "Job_ID", "Status", "Git_tag", "AB_release", "Submitted_by",
+  "Submitted_date", "Finished_date", "Ntuple_files", "Ntuple_size [GB]",
+  "Ntuple_events [k]", "Merged_file_path", "Notes"];
+const NUMERIC = new Set(["Files", "Size [GB]", "Events [k]", "Ntuple_files",
+  "Ntuple_size [GB]", "Ntuple_events [k]"]);
+const MONO = new Set(["Merged_file_path", "Git_tag", "AB_release"]);
+const DONE_STATES = new Set(["Merged", "Done"]);
+
+function statusHTML(s) {
+  const cls = "s-" + (s || "Not submitted").toLowerCase().replace(/\s+/g, "");
+  return `<span class="status ${cls}">${s || "Not submitted"}</span>`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+async function main() {
+  const tablesDiv = document.getElementById("tables");
+  let manifest;
+  try {
+    manifest = await (await fetch("data/manifest.json")).json();
+  } catch (e) {
+    tablesDiv.innerHTML = `<div class="err">Could not load data/manifest.json &mdash; ` +
+      `if viewing locally, serve the folder: <code>python3 -m http.server</code></div>`;
+    return;
+  }
+  document.getElementById("title").textContent = manifest.title;
+  document.title = "ZdZd Run 3 — " + manifest.title;
+
+  const counts = {}; let total = 0;
+  for (const proc of manifest.processes) {
+    const text = await (await fetch(`data/${proc}.csv`)).text();
+    const rows = parseCSV(text);
+    const hdr = rows[0];
+    const idx = Object.fromEntries(hdr.map((h, i) => [h, i]));
+    const body = rows.slice(1);
+    let done = 0;
+    let html = "<tr>" + SHOW.map(h => `<th>${esc(h)}</th>`).join("") + "</tr>";
+    for (const r of body) {
+      const get = h => (idx[h] === undefined ? "" : r[idx[h]] || "");
+      const st = get("Status") || "Not submitted";
+      counts[st] = (counts[st] || 0) + 1; total++;
+      if (DONE_STATES.has(st)) done++;
+      html += "<tr>" + SHOW.map(h => {
+        let v = get(h);
+        if (h === "Status") return `<td>${statusHTML(st)}</td>`;
+        if (h === "Job_ID" && v) {
+          const link = get("Job_link") || `https://bigpanda.cern.ch/task/${v}/`;
+          return `<td><a href="${esc(link)}" target="_blank" rel="noopener">${esc(v)}</a></td>`;
+        }
+        if (h === "Physics_identifier") {
+          return `<td class="mono" title="${esc(get("DID"))}">${esc(v)}</td>`;
+        }
+        const cls = NUMERIC.has(h) ? "num" : (MONO.has(h) ? "mono" : "");
+        return `<td class="${cls}">${esc(v)}</td>`;
+      }).join("") + "</tr>";
+    }
+    const det = document.createElement("details");
+    det.open = true;
+    det.innerHTML =
+      `<summary>${esc(proc)} <span class="frac">${done}/${body.length} merged</span>` +
+      `<span class="bar"><div style="width:${body.length ? 100 * done / body.length : 0}%"></div></span>` +
+      `</summary><div class="tblwrap"><table>${html}</table></div>`;
+    tablesDiv.appendChild(det);
+  }
+
+  const order = ["Not submitted", "Submitted", "Running", "Finished", "Failed",
+                 "Downloaded", "Merged", "Done"];
+  const sm = document.getElementById("summary");
+  sm.innerHTML = `<div class="pill"><b>${total}</b>datasets</div>` +
+    order.filter(s => counts[s]).map(s =>
+      `<div class="pill"><b>${counts[s]}</b>${statusHTML(s)}</div>`).join("");
+
+  document.getElementById("updated").textContent =
+    "Page rendered " + new Date().toISOString().slice(0, 16).replace("T", " ") +
+    " UTC — data is as of the last git push.";
+}
+main();
+</script>
+</body>
+</html>

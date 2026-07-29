@@ -1,0 +1,14 @@
+{
+ "title": "mc23 p7266 background Ntuple production",
+ "processes": [
+  "H_ZZ_4l",
+  "Tribosons",
+  "WZ",
+  "ZZ_4l",
+  "Zjets_ee",
+  "Zjets_mumu",
+  "Zjets_tautau",
+  "ttbar",
+  "ttbarZ"
+ ]
+}

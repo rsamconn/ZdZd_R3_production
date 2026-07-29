@@ -1,0 +1,4 @@
+DID,DSID,Physics_identifier,Tags,MC_campaign,Physics_process_short,Files,Size [GB],Events [k],Job_ID,Job_link,Status,Git_tag,AB_release,Submitted_by,Submitted_date,Finished_date,Output_dataset,Ntuple_files,Ntuple_size [GB],Ntuple_events [k],Merged_file_path,Notes
+mc23_13p6TeV:mc23_13p6TeV.701274.Sh_22_ttll_2LFilter.deriv.DAOD_PHYS.e8532_s4162_r15540_p7266,701274,Sh_22_ttll_2LFilter,e8532_s4162_r15540_p7266,mc23a,ttbarZ,59,139.633,3140,,,Not submitted,,,,,,,,,,,
+mc23_13p6TeV:mc23_13p6TeV.701274.Sh_22_ttll_2LFilter.deriv.DAOD_PHYS.e8532_s4159_r15530_p7266,701274,Sh_22_ttll_2LFilter,e8532_s4159_r15530_p7266,mc23d,ttbarZ,84,150.06,3140,,,Not submitted,,,,,,,,,,,
+mc23_13p6TeV:mc23_13p6TeV.701274.Sh_22_ttll_2LFilter.deriv.DAOD_PHYS.e8532_s4369_r16083_p7266,701274,Sh_22_ttll_2LFilter,e8532_s4369_r16083_p7266,mc23e,ttbarZ,222,558.773,11550,,,Not submitted,,,,,,,,,,,
