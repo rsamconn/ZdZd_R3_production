@@ -1,0 +1,29 @@
+# ___ PhPy8EG_NNPDF30_gg4l_noHiggs_m4l_70_3000
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.603293.PhPy8EG_NNPDF30_gg4l_noHiggs_m4l_70_3000.deriv.DAOD_PHYS.e8601_s4162_r15540_p7266
+## ___ mc23d
+#mc23_13p6TeV:mc23_13p6TeV.603293.PhPy8EG_NNPDF30_gg4l_noHiggs_m4l_70_3000.deriv.DAOD_PHYS.e8601_s4159_r15530_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.603293.PhPy8EG_NNPDF30_gg4l_noHiggs_m4l_70_3000.deriv.DAOD_PHYS.e8601_s4369_r16083_p7266
+
+# ___ Sh_2214_llll_m4l100_300_filt100_170
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.701185.Sh_2214_llll_m4l100_300_filt100_170.deriv.DAOD_PHYS.e8543_s4162_r14622_p7266
+## ___ mc23d
+#mc23_13p6TeV:mc23_13p6TeV.701185.Sh_2214_llll_m4l100_300_filt100_170.deriv.DAOD_PHYS.e8543_s4159_r15224_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.701185.Sh_2214_llll_m4l100_300_filt100_170.deriv.DAOD_PHYS.e8543_s4369_r16083_p7266
+
+# ___ Sh_2214_llll_m4l300
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.701190.Sh_2214_llll_m4l300.deriv.DAOD_PHYS.e8543_s4162_r14622_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.701190.Sh_2214_llll_m4l300.deriv.DAOD_PHYS.e8543_s4369_r16083_p7266
+
+# ___ Sh_llll
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.701040.Sh_llll.deriv.DAOD_PHYS.e8582_s4162_r15540_p7266
+## ___ mc23d
+#mc23_13p6TeV:mc23_13p6TeV.701040.Sh_llll.deriv.DAOD_PHYS.e8582_s4159_r15530_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.701040.Sh_llll.deriv.DAOD_PHYS.e8582_s4369_r16083_p7266

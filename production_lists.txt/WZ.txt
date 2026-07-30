@@ -1,0 +1,7 @@
+# ___ PhPy8EG_WZlllv_mll4
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.603771.PhPy8EG_WZlllv_mll4.deriv.DAOD_PHYS.e8551_s4162_r15540_p7266
+## ___ mc23d
+#mc23_13p6TeV:mc23_13p6TeV.603771.PhPy8EG_WZlllv_mll4.deriv.DAOD_PHYS.e8551_s4159_r15530_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.603771.PhPy8EG_WZlllv_mll4.deriv.DAOD_PHYS.e8551_s4369_r16083_p7266

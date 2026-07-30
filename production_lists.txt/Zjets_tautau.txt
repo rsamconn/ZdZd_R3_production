@@ -1,0 +1,23 @@
+# ___ Sh_2214_Ztautau_maxHTpTV2_BFilter
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.700792.Sh_2214_Ztautau_maxHTpTV2_BFilter.deriv.DAOD_PHYS.e8514_s4162_r15540_p7266
+## ___ mc23d
+#mc23_13p6TeV:mc23_13p6TeV.700792.Sh_2214_Ztautau_maxHTpTV2_BFilter.deriv.DAOD_PHYS.e8514_s4159_r15224_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.700792.Sh_2214_Ztautau_maxHTpTV2_BFilter.deriv.DAOD_PHYS.e8514_s4369_r16083_p7266
+
+# ___ Sh_2214_Ztautau_maxHTpTV2_CFilterBVeto
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.700793.Sh_2214_Ztautau_maxHTpTV2_CFilterBVeto.deriv.DAOD_PHYS.e8514_s4162_r15540_p7266
+## ___ mc23d
+#mc23_13p6TeV:mc23_13p6TeV.700793.Sh_2214_Ztautau_maxHTpTV2_CFilterBVeto.deriv.DAOD_PHYS.e8514_s4159_r15224_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.700793.Sh_2214_Ztautau_maxHTpTV2_CFilterBVeto.deriv.DAOD_PHYS.e8514_s4369_r16083_p7266
+
+# ___ Sh_2214_Ztautau_maxHTpTV2_CVetoBVeto
+## ___ mc23a
+#mc23_13p6TeV:mc23_13p6TeV.700794.Sh_2214_Ztautau_maxHTpTV2_CVetoBVeto.deriv.DAOD_PHYS.e8514_s4162_r15540_p7266
+## ___ mc23d
+#mc23_13p6TeV:mc23_13p6TeV.700794.Sh_2214_Ztautau_maxHTpTV2_CVetoBVeto.deriv.DAOD_PHYS.e8514_s4159_r15530_p7266
+## ___ mc23e
+#mc23_13p6TeV:mc23_13p6TeV.700794.Sh_2214_Ztautau_maxHTpTV2_CVetoBVeto.deriv.DAOD_PHYS.e8514_s4369_r16083_p7266
