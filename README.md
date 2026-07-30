@@ -135,7 +135,7 @@ script-driven routes.
 | Output_dataset | grid output container | — | `submit --output-dataset` |
 | Ntuple_files | # .root files downloaded | counted under `download --dir` | `set` |
 | Ntuple_size [GB] | their total size | summed under `download --dir` | `set` |
-| Ntuple_events [k] | events in merged file | uproot count at `merge` | `merge --events` |
+| Ntuple_events | events in merged file (exact count) | uproot count at `merge` | `merge --events` |
 | hard_l_pdgId, truth_llll_tlv_pt, llll_tlv_pt | stored values in these branches, flattened over vectors — same count as `TTree::Draw`'s `htemp->GetEntries()` ("missing" if absent) | uproot at `merge` (tree: the file's only one, else `Nominal/llllTree`, else `--tree`) | `set` |
 | Merged_file_path | final merged .root on EOS | abspath of `merge --merged-file` | `set` |
 | Notes | anything | — | `set --set "Notes=..."` |

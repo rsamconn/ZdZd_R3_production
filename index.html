@@ -90,10 +90,10 @@ function parseCSV(text) {
 const SHOW = ["DSID", "Physics_identifier", "MC_campaign", "Files", "Size [GB]",
   "Events [k]", "Job_ID", "Status", "ZdZd13TeV_commit", "Athena_release", "Submitted_by",
   "Submitted_date", "Finished_date", "Ntuple_files", "Ntuple_size [GB]",
-  "Ntuple_events [k]", "hard_l_pdgId", "truth_llll_tlv_pt", "llll_tlv_pt",
+  "Ntuple_events", "hard_l_pdgId", "truth_llll_tlv_pt", "llll_tlv_pt",
   "Merged_file_path", "Notes"];
 const NUMERIC = new Set(["Files", "Size [GB]", "Events [k]", "Ntuple_files",
-  "Ntuple_size [GB]", "Ntuple_events [k]", "hard_l_pdgId", "truth_llll_tlv_pt",
+  "Ntuple_size [GB]", "Ntuple_events", "hard_l_pdgId", "truth_llll_tlv_pt",
   "llll_tlv_pt"]);
 const MONO = new Set(["Merged_file_path", "ZdZd13TeV_commit", "Athena_release"]);
 const DONE_STATES = new Set(["Merged", "Done"]);

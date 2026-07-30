@@ -42,7 +42,7 @@ How each column gets filled
   Output_dataset        `submit --output-dataset`
   Ntuple_files          auto: count of .root* files under `download --dir`
   Ntuple_size [GB]      auto: byte sum of those files / 1e9
-  Ntuple_events [k]     auto: uproot entry count of `merge --merged-file`,
+  Ntuple_events         auto: uproot entry count of `merge --merged-file`,
                         else `merge --events`
   hard_l_pdgId          auto at merge (uproot): total stored values in the
   truth_llll_tlv_pt       branch, flattened over vectors -- the same count as
@@ -281,7 +281,7 @@ def stage_merge(tables, args):
         events = args.events
     set_fields(row, path, {
         "Merged_file_path": merged,
-        "Ntuple_events [k]": round(events / 1e3, 1) if events is not None else None,
+        "Ntuple_events": int(events) if events is not None else None,
         **{b: branches.get(b) for b in BRANCH_COLS},
     })
     apply_status(row, path, "Merged", args.status)
