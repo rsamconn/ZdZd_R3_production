@@ -28,8 +28,8 @@ git remote add github https://github.com/rsamconn/ZdZd_R3_production.git
 # 1. After grid submission (task ID printed by the submit script):
 python3 update_tracker.py submit --dsid 601634 --campaign mc23d \
     --job-id 45123678 --output-dataset user.<user>.601634.mc23d.p7266.v1 \
-    --code-dir /path/to/ZdZd13TeV      # -> Git_tag from `git describe`
-# AB_release auto-read from $AnalysisBase_VERSION (asetup), user from $USER.
+    --code-dir /path/to/ZdZd13TeV  # -> ZdZd13TeV_commit via `git rev-parse`
+# (or set $ZDZD13TEV_DIR once instead of --code-dir, or pass --commit directly)
 
 # 2. After rucio download:
 python3 update_tracker.py download --dsid 601634 --campaign mc23d \
@@ -38,7 +38,12 @@ python3 update_tracker.py download --dsid 601634 --campaign mc23d \
 # 3. After merging:
 python3 update_tracker.py merge --dsid 601634 --campaign mc23d \
     --merged-file /eos/user/<u>/<user>/ntuples/p7266/601634_mc23d.root
-    # events counted with uproot if available, else add --events N
+    # events + branch-entry counts via uproot if available, else add --events N
+
+# Edit any specific cell(s) of one row (row by DSID+campaign, or full --did):
+python3 update_tracker.py set \
+    --did mc23_13p6TeV:mc23_13p6TeV.701185.Sh_2214_llll_m4l100_300_filt100_170.deriv.DAOD_PHYS.e8543_s4159_r15224_p7266 \
+    --set "Notes=re-downloaded lost files" --set "Ntuple_files=97"
 
 # Publish (every time, to GitLab):
 git add data/ && git commit -m "601634 mc23d merged" && git push
@@ -48,8 +53,12 @@ git push github master
 ```
 
 The script is stdlib-only (uproot optional). Rows are keyed by DSID +
-MC campaign. Manual edits to the CSVs (or via the GitHub/GitLab web editor)
-are fine — just keep the header row intact.
+MC campaign (or the full DID with `set --did`). Manual edits to the CSVs (or
+via the GitHub/GitLab web editor) are fine — just keep the header row intact.
+
+The three stages never *downgrade* Status (e.g. running `download` on a row
+already at Merged keeps Merged); pass `--status <value>` on any subcommand to
+force a specific value.
 
 ## Status page (GitHub Pages)
 
@@ -77,23 +86,35 @@ the repo remains canonical (edits made in the Sheet are NOT synced back).
 ```
 data/*.csv          one CSV per physics process (canonical data)
 data/manifest.json  process list + page title
-update_tracker.py   3-stage updater (submit / download / merge)
+update_tracker.py   updater (submit / download / merge / set)
 index.html          static status page (GitHub Pages)
 ```
 
-## Columns
+## Columns — what they mean and every way to update them
 
-| Column | Filled by | Meaning |
-|---|---|---|
-| DID … Events [k] | initial import | input DAOD_PHYS dataset details (p7266) |
-| Job_ID / Job_link | stage 1 | PanDA JEDI task ID / BigPanDA URL |
-| Status | stages 1–3 | Not submitted → Submitted → Running → Finished / Failed → Downloaded → Merged → Done |
-| Git_tag / AB_release | stage 1 | analysis code `git describe` / asetup release |
-| Submitted_by / dates | stages 1–2 | who + when |
-| Output_dataset | stage 1 | grid output container |
-| Ntuple_files / size | stage 2 | counted in the rucio download folder |
-| Ntuple_events [k] | stage 3 | events in the merged file |
-| Merged_file_path | stage 3 | final merged .root on EOS |
+Any column can additionally be edited by hand (CSV/web editor) or via
+`update_tracker.py set --set "Column=Value"`; the table lists the
+script-driven routes.
 
-"Running/Finished/Failed/Done" are set by hand (or by a future PanDA-polling
-script) — the three stages only set Submitted / Downloaded / Merged.
+| Column | Meaning | Auto | Manual |
+|---|---|---|---|
+| DID … Events [k] | input DAOD_PHYS dataset details (p7266) | initial import | `set` only |
+| Job_ID | PanDA JEDI task ID | — | `submit --job-id` (required) |
+| Job_link | BigPanDA URL | from Job_ID at `submit` | `set` |
+| Status | Not submitted → Submitted → Running → Finished / Failed → Downloaded → Merged → Done | `submit`/`download`/`merge` set Submitted/Downloaded/Merged, never downgrading | `--status <value>` on any subcommand (always wins) |
+| ZdZd13TeV_commit | ZdZd13TeV commit hash used | `git rev-parse --short=12 HEAD` in `submit --code-dir` (or `$ZDZD13TEV_DIR`) | `submit --commit` |
+| Athena_release | asetup release | defaults to `AthAnalysis,25.2.102` at `submit` (message printed) | `submit --ath-release` |
+| Submitted_by | who submitted | `$USER` at `submit` | `submit --user` |
+| Submitted_date | when submitted | today at `submit` | `submit --date` |
+| Finished_date | when downloaded | today at `download` | `download --date` |
+| Output_dataset | grid output container | — | `submit --output-dataset` |
+| Ntuple_files | # .root files downloaded | counted under `download --dir` | `set` |
+| Ntuple_size [GB] | their total size | summed under `download --dir` | `set` |
+| Ntuple_events [k] | events in merged file | uproot count at `merge` | `merge --events` |
+| hard_l_pdgId, truth_llll_tlv_pt, llll_tlv_pt | entries in these branches of the merged tree ("missing" if absent) | uproot at `merge` | `set` |
+| Merged_file_path | final merged .root on EOS | abspath of `merge --merged-file` | `set` |
+| Notes | anything | — | `set --set "Notes=..."` |
+
+"Running/Finished/Failed/Done" are set by hand (`--status` or `set`, or by a
+future PanDA-polling script) — the stages only set Submitted / Downloaded /
+Merged.
