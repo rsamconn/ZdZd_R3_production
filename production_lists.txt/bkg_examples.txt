@@ -1,0 +1,37 @@
+### Background Examples ###
+
+# 1: SM H->ZZ*->4l (bbH_HZZ_4l)
+## 8 files, 11.683 GB, 400k events -->> 0.135 GB, 157k events
+#mc23_13p6TeV:mc23_13p6TeV.601634.PhPy8EG_PDF4LHC21_4FS_A14NNPDF_bbH_HZZ_4l_notau.deriv.DAOD_PHYS.e8558_s4159_r15530_p7266
+
+# 2: Z+jets -> ee
+## 342 files, 1313 GB, 34810k events
+#mc23_13p6TeV:mc23_13p6TeV.700786.Sh_2214_Zee_maxHTpTV2_BFilter.deriv.DAOD_PHYS.e8514_s4159_r15224_p7266
+
+# 3: Z+jets -> uu
+## 1099 files, 1256 GB, 35340k events
+#mc23_13p6TeV:mc23_13p6TeV.700789.Sh_2214_Zmumu_maxHTpTV2_BFilter.deriv.DAOD_PHYS.e8514_s4159_r15224_p7266
+
+# 4: Z+jets -> tautau
+## 457 files, 1307 GB, 35330k events
+#mc23_13p6TeV:mc23_13p6TeV.700792.Sh_2214_Ztautau_maxHTpTV2_BFilter.deriv.DAOD_PHYS.e8514_s4159_r15224_p7266
+
+# 5: ttbar
+## 3585 files, 9175 GB, 249770k events
+#mc23_13p6TeV:mc23_13p6TeV.601230.PhPy8EG_A14_ttbar_hdamp258p75_dil.deriv.DAOD_PHYS.e8514_s4159_r15530_p7266
+
+# 6: SM pp->ZZ*->4l
+## 61 files, 83.262 GB, 2940k events
+mc23_13p6TeV:mc23_13p6TeV.603293.PhPy8EG_NNPDF30_gg4l_noHiggs_m4l_70_3000.deriv.DAOD_PHYS.e8601_s4159_r15530_p7266
+
+# 7: pp->ttbar Z
+## 103 files, 157.835 GB, 3140k events
+#mc23_13p6TeV:mc23_13p6TeV.701274.Sh_22_ttll_2LFilter.deriv.DAOD_PHYS.e8532_s4159_r15530_p7266
+
+# 8: WZ
+## 63 files, 104.680 GB, 4310k events
+#mc23_13p6TeV:mc23_13p6TeV.603771.PhPy8EG_WZlllv_mll4.deriv.DAOD_PHYS.e8551_s4159_r15530_p7266 # p6697 now OBSOLETED
+
+# 9: tribosons
+## 7 files, 3.286 GB, 100k events
+#mc23_13p6TeV:mc23_13p6TeV.701236.Sh_22_WWZ_4l2v_EW6.deriv.DAOD_PHYS.e8585_s4159_r15530_p7266
