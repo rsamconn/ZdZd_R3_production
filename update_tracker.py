@@ -3,35 +3,68 @@
 update_tracker.py -- update the mc23 p7266 Ntuple production tracker (CSV backend).
 
 The tracker is one CSV per physics process in data/ (see data/manifest.json).
-Three stages, matching the production workflow. The script ONLY edits the CSVs
-(plus local inspection of folders/files you point it at); it never runs
-rucio/panda commands itself. Stdlib-only: no pip installs needed on lxplus
-(uproot optional, for event counting at the merge stage).
+The script ONLY edits the CSVs (plus local inspection of folders/files you
+point it at); it never runs rucio/panda commands itself. Stdlib-only
+(uproot optional, for the merge stage).
 
-  1) submit    after grid submission        -> Job_ID, Job_link, Status=Submitted,
-                                               Git_tag, AB_release, Submitted_by,
-                                               Submitted_date, Output_dataset
-  2) download  after `rucio download`       -> Finished_date, Ntuple_files,
-                                               Ntuple_size [GB], Status=Downloaded
-  3) merge     after merging .root files    -> Merged_file_path, Ntuple_events [k],
-                                               Status=Merged
+Subcommands
+-----------
+  submit     after grid submission
+  download   after `rucio download`
+  merge      after merging the .root files
+  set        edit arbitrary cells of one row directly
 
-Rows are identified by DSID + MC campaign (unique across the tracker).
+Rows are identified by --dsid + --campaign, or (set only, also) by the full
+dataset name via --did.
+
+Status is never DOWNGRADED by the stages: e.g. running `download` on a row
+already at Merged leaves the status alone (a note is printed). An explicit
+--status <value> on any subcommand always wins.
+
+How each column gets filled
+---------------------------
+  DID ... Events [k]    fixed input-dataset info; edit only via `set` if a
+                        dataset is replaced
+  Job_ID                `submit --job-id`
+  Job_link              auto from Job_ID (bigpanda.cern.ch/task/<ID>/)
+  Status                auto per stage (Submitted / Downloaded / Merged),
+                        never downgraded; manual via --status on any
+                        subcommand or `set --set "Status=..."`
+  ZdZd13TeV_commit      manual via `submit --commit`, else auto
+                        `git rev-parse --short=12 HEAD` in --code-dir
+                        (default $ZDZD13TEV_DIR)
+  Athena_release        manual via `submit --ath-release`, else defaults to
+                        "AthAnalysis,25.2.102" (a message is printed)
+  Submitted_by          manual via `submit --user`, else $USER
+  Submitted_date        manual via `submit --date`, else today
+  Finished_date         manual via `download --date`, else today
+  Output_dataset        `submit --output-dataset`
+  Ntuple_files          auto: count of .root* files under `download --dir`
+  Ntuple_size [GB]      auto: byte sum of those files / 1e9
+  Ntuple_events [k]     auto: uproot entry count of `merge --merged-file`,
+                        else `merge --events`
+  hard_l_pdgId          auto at merge: entries in that branch (uproot),
+  truth_llll_tlv_pt       "missing" if the branch is absent; manual via `set`
+  llll_tlv_pt             if uproot is unavailable
+  Merged_file_path      auto: abspath of `merge --merged-file`
+  Notes                 manual via `set --set "Notes=..."` (or any column:
+                        `set --set "Column=Value"`, repeatable)
 
 Examples
 --------
-  python3 update_tracker.py submit --dsid 601634 --campaign mc23d \
-      --job-id 45123678 --output-dataset user.rconn.601634.mc23d.p7266.v1
-      # --git-tag defaults to `git describe` of this repo's checkout dir if
-      #   --code-dir is given; AB_release from $AnalysisBase_VERSION;
-      #   submitter from $USER; dates today. All overridable.
+  python3 update_tracker.py submit --dsid 601634 --campaign mc23d \\
+      --job-id 45123678 --output-dataset user.rconn.601634.mc23d.p7266.v1 \\
+      --code-dir ~/ZdZd13TeV
 
-  python3 update_tracker.py download --dsid 601634 --campaign mc23d \
+  python3 update_tracker.py download --dsid 601634 --campaign mc23d \\
       --dir /eos/user/r/rconn/dl/601634_mc23d
 
-  python3 update_tracker.py merge --dsid 601634 --campaign mc23d \
-      --merged-file /eos/user/r/rconn/ntuples/p7266/601634_mc23d.root \
-      [--tree analysis] [--events 400000]
+  python3 update_tracker.py merge --dsid 601634 --campaign mc23d \\
+      --merged-file /eos/user/r/rconn/ntuples/p7266/601634_mc23d.root
+
+  python3 update_tracker.py set \\
+      --did mc23_13p6TeV:mc23_13p6TeV.701185.Sh_2214_llll_m4l100_300_filt100_170.deriv.DAOD_PHYS.e8543_s4159_r15224_p7266 \\
+      --set "Notes=two files lost on site, re-downloaded" --set "Ntuple_files=97"
 
 Then:  git add data/ && git commit -m "601634 mc23d submitted" && git push
 """
@@ -47,14 +80,15 @@ import sys
 
 BIGPANDA = "https://bigpanda.cern.ch/task/{}/"
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+DEFAULT_ATH_RELEASE = "AthAnalysis,25.2.102"
+CODE_DIR_ENV = "ZDZD13TEV_DIR"
+BRANCH_COLS = ["hard_l_pdgId", "truth_llll_tlv_pt", "llll_tlv_pt"]
 
-# Column names (must match the CSV headers)
-C_DSID = "DSID"
-C_CAMPAIGN = "MC_campaign"
+STATUS_RANK = {"Not submitted": 0, "Submitted": 1, "Running": 2, "Finished": 3,
+               "Failed": 3, "Downloaded": 4, "Merged": 5, "Done": 6}
 
 
 def load_all(data_dir):
-    """Return {csv_path: (fieldnames, rows)} for every process CSV."""
     out = {}
     for path in sorted(glob.glob(os.path.join(data_dir, "*.csv"))):
         with open(path, newline="") as f:
@@ -65,18 +99,22 @@ def load_all(data_dir):
     return out
 
 
-def find_row(tables, dsid, campaign):
-    """Return (csv_path, row_dict) for the row matching DSID + campaign."""
+def find_row(tables, dsid=None, campaign=None, did=None):
+    """Return (csv_path, row_dict). Match by full DID, or by DSID + campaign."""
     hits = []
     for path, (_fields, rows) in tables.items():
         for row in rows:
-            if str(row[C_DSID]) == str(dsid) and row[C_CAMPAIGN] == campaign:
+            if did is not None:
+                if row["DID"] == did:
+                    hits.append((path, row))
+            elif str(row["DSID"]) == str(dsid) and row["MC_campaign"] == campaign:
                 hits.append((path, row))
+    key = did or f"DSID={dsid}, campaign={campaign}"
     if not hits:
-        sys.exit(f"No row found for DSID={dsid}, campaign={campaign}")
+        sys.exit(f"No row found for {key}")
     if len(hits) > 1:
         where = ", ".join(os.path.basename(p) for p, _ in hits)
-        sys.exit(f"Ambiguous: DSID={dsid}, campaign={campaign} matches rows in {where}")
+        sys.exit(f"Ambiguous: {key} matches rows in {where}")
     return hits[0]
 
 
@@ -87,24 +125,36 @@ def save(path, fields, rows):
         w.writerows(rows)
 
 
-def set_fields(row, path, **kv):
-    for key, val in kv.items():
-        key = key.replace("__", " ")  # Ntuple_size__[GB] -> "Ntuple_size [GB]"
+def set_fields(row, path, fields):
+    for key, val in fields.items():
         if val is not None:
             row[key] = val
             print(f"  {os.path.basename(path)}: {key} = {val}")
+
+
+def apply_status(row, path, auto_status, user_status):
+    """Stage statuses never downgrade; an explicit --status always wins."""
+    if user_status is not None:
+        set_fields(row, path, {"Status": user_status})
+        return
+    current = row.get("Status") or "Not submitted"
+    if STATUS_RANK.get(auto_status, 0) > STATUS_RANK.get(current, 0):
+        set_fields(row, path, {"Status": auto_status})
+    else:
+        print(f"  Status kept at '{current}' (not downgraded to '{auto_status}';"
+              f" use --status to force)")
 
 
 def today():
     return datetime.date.today().isoformat()
 
 
-def git_describe(code_dir):
+def zdzd_commit(code_dir):
     try:
         return subprocess.check_output(
-            ["git", "describe", "--tags", "--always", "--dirty"],
+            ["git", "rev-parse", "--short=12", "HEAD"],
             cwd=code_dir, text=True, stderr=subprocess.DEVNULL).strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, NotADirectoryError):
         return None
 
 
@@ -112,23 +162,31 @@ def git_describe(code_dir):
 
 def stage_submit(tables, args):
     path, row = find_row(tables, args.dsid, args.campaign)
-    git_tag = args.git_tag or (git_describe(args.code_dir) if args.code_dir else None)
-    if git_tag is None:
-        print("WARNING: no --git-tag / --code-dir given; leaving Git_tag blank",
-              file=sys.stderr)
-    ab = args.ab_release or os.environ.get("AnalysisBase_VERSION")
-    if ab is None:
-        print("WARNING: --ab-release not given and $AnalysisBase_VERSION not set;"
-              " leaving AB_release blank", file=sys.stderr)
-    set_fields(row, path,
-               Job_ID=args.job_id,
-               Job_link=BIGPANDA.format(args.job_id),
-               Status="Submitted",
-               Git_tag=git_tag,
-               AB_release=ab,
-               Submitted_by=args.user or getpass.getuser(),
-               Submitted_date=args.date or today(),
-               Output_dataset=args.output_dataset)
+    commit = args.commit
+    if commit is None:
+        code_dir = args.code_dir or os.environ.get(CODE_DIR_ENV)
+        if code_dir:
+            commit = zdzd_commit(code_dir)
+            if commit is None:
+                print(f"WARNING: could not run `git rev-parse` in {code_dir};"
+                      " leaving ZdZd13TeV_commit blank", file=sys.stderr)
+        else:
+            print("WARNING: no --commit / --code-dir / $" + CODE_DIR_ENV +
+                  "; leaving ZdZd13TeV_commit blank", file=sys.stderr)
+    ath_release = args.ath_release
+    if ath_release is None:
+        ath_release = DEFAULT_ATH_RELEASE
+        print(f"Athena_release not given; defaulting to {ath_release}")
+    set_fields(row, path, {
+        "Job_ID": args.job_id,
+        "Job_link": BIGPANDA.format(args.job_id),
+        "ZdZd13TeV_commit": commit,
+        "Athena_release": ath_release,
+        "Submitted_by": args.user or getpass.getuser(),
+        "Submitted_date": args.date or today(),
+        "Output_dataset": args.output_dataset,
+    })
+    apply_status(row, path, "Submitted", args.status)
     return path
 
 
@@ -144,27 +202,33 @@ def stage_download(tables, args):
                 total_bytes += os.path.getsize(os.path.join(dirpath, f))
     if n == 0:
         sys.exit(f"No .root files found under {args.dir}")
-    set_fields(row, path,
-               Finished_date=args.date or today(),
-               Ntuple_files=n,
-               Status="Downloaded",
-               **{"Ntuple_size [GB]": round(total_bytes / 1e9, 3)})
+    set_fields(row, path, {
+        "Finished_date": args.date or today(),
+        "Ntuple_files": n,
+        "Ntuple_size [GB]": round(total_bytes / 1e9, 3),
+    })
+    apply_status(row, path, "Downloaded", args.status)
     return path
 
 
-def count_events(path, tree):
+def inspect_merged(path, tree_name):
+    """Return (events, {branch: entries or 'missing'}) via uproot, or (None, {})."""
     try:
         import uproot
     except ImportError:
-        return None
+        return None, {}
     with uproot.open(path) as f:
-        if tree:
-            return f[tree].num_entries
-        trees = sorted({k.split(";")[0] for k, v in f.classnames().items()
-                        if v.startswith("TTree")})
-        if len(trees) != 1:
-            sys.exit(f"Found trees {trees} in {path}; pick one with --tree")
-        return f[trees[0]].num_entries
+        if tree_name:
+            tree = f[tree_name]
+        else:
+            trees = sorted({k.split(";")[0] for k, v in f.classnames().items()
+                            if v.startswith("TTree")})
+            if len(trees) != 1:
+                sys.exit(f"Found trees {trees} in {path}; pick one with --tree")
+            tree = f[trees[0]]
+        branches = {b: (tree[b].num_entries if b in tree else "missing")
+                    for b in BRANCH_COLS}
+        return tree.num_entries, branches
 
 
 def stage_merge(tables, args):
@@ -172,17 +236,38 @@ def stage_merge(tables, args):
     merged = os.path.abspath(args.merged_file)
     if not os.path.isfile(merged):
         sys.exit(f"Not a file: {merged}")
-    events = args.events
+    events, branches = inspect_merged(merged, args.tree)
     if events is None:
-        events = count_events(merged, args.tree)
-        if events is None:
-            print("WARNING: uproot not installed and --events not given;"
-                  " leaving Ntuple_events blank", file=sys.stderr)
-    set_fields(row, path,
-               Merged_file_path=merged,
-               Status="Merged",
-               **{"Ntuple_events [k]":
-                  round(events / 1e3, 1) if events is not None else None})
+        print("WARNING: uproot not installed; branch-entry columns left blank"
+              + ("" if args.events is not None else
+                 " and Ntuple_events blank (or pass --events)"), file=sys.stderr)
+    if args.events is not None:
+        events = args.events
+    set_fields(row, path, {
+        "Merged_file_path": merged,
+        "Ntuple_events [k]": round(events / 1e3, 1) if events is not None else None,
+        **{b: branches.get(b) for b in BRANCH_COLS},
+    })
+    apply_status(row, path, "Merged", args.status)
+    return path
+
+
+def stage_set(tables, args):
+    if args.did is None and (args.dsid is None or args.campaign is None):
+        sys.exit("set: give either --did, or both --dsid and --campaign")
+    path, row = find_row(tables, args.dsid, args.campaign, args.did)
+    fields = tables[path][0]
+    updates = {}
+    for item in args.set:
+        if "=" not in item:
+            sys.exit(f"Bad --set '{item}': expected \"Column=Value\"")
+        col, val = item.split("=", 1)
+        if col not in fields:
+            sys.exit(f"Unknown column '{col}'. Valid columns:\n  " + "\n  ".join(fields))
+        updates[col] = val
+    if args.status is not None:
+        updates["Status"] = args.status
+    set_fields(row, path, updates)
     return path
 
 
@@ -193,37 +278,48 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="stage", required=True)
 
-    def common(sp):
+    def common(sp, need_key=True):
         sp.add_argument("--data-dir", default=DEFAULT_DATA_DIR,
                         help="folder with the tracker CSVs (default: data/ next to this script)")
-        sp.add_argument("--dsid", required=True)
-        sp.add_argument("--campaign", required=True,
+        sp.add_argument("--dsid", required=need_key)
+        sp.add_argument("--campaign", required=need_key,
                         choices=["mc23a", "mc23c", "mc23d", "mc23e"])
-        sp.add_argument("--date", help="override date (YYYY-MM-DD); default today")
+        sp.add_argument("--status", choices=list(STATUS_RANK),
+                        help="force Status to this value (overrides the stage default "
+                             "and the no-downgrade rule)")
 
     s = sub.add_parser("submit", help="stage 1: record grid submission")
     common(s)
     s.add_argument("--job-id", required=True, help="PanDA JEDI task ID")
-    s.add_argument("--git-tag", help="git tag/commit of the analysis code")
-    s.add_argument("--code-dir", help="analysis code checkout; used for `git describe` "
-                                      "when --git-tag is not given")
-    s.add_argument("--ab-release", help="AnalysisBase release; default $AnalysisBase_VERSION")
+    s.add_argument("--commit", help="ZdZd13TeV commit hash; default: git rev-parse in --code-dir")
+    s.add_argument("--code-dir", help=f"ZdZd13TeV checkout (default ${CODE_DIR_ENV}) "
+                                      "used to auto-read the commit hash")
+    s.add_argument("--ath-release", help=f"release; defaults to {DEFAULT_ATH_RELEASE}")
     s.add_argument("--output-dataset", help="grid output container name")
     s.add_argument("--user", help="submitter; default $USER")
+    s.add_argument("--date", help="submission date (YYYY-MM-DD); default today")
 
     d = sub.add_parser("download", help="stage 2: record rucio download")
     common(d)
     d.add_argument("--dir", required=True, help="folder the output was downloaded into")
+    d.add_argument("--date", help="finished date (YYYY-MM-DD); default today")
 
     m = sub.add_parser("merge", help="stage 3: record merged Ntuple")
     common(m)
     m.add_argument("--merged-file", required=True, help="path to merged .root file")
-    m.add_argument("--tree", help="TTree name for event counting (default: auto)")
-    m.add_argument("--events", type=int, help="total events, if not using uproot")
+    m.add_argument("--tree", help="TTree name (default: auto if file has exactly one)")
+    m.add_argument("--events", type=int, help="total events, overrides/replaces uproot count")
+
+    e = sub.add_parser("set", help="edit specific cells of one row")
+    common(e, need_key=False)
+    e.add_argument("--did", help="full dataset name (alternative to --dsid/--campaign)")
+    e.add_argument("--set", action="append", required=True, metavar='"Column=Value"',
+                   help="cell to set; repeatable")
 
     args = p.parse_args()
     tables = load_all(args.data_dir)
-    fn = {"submit": stage_submit, "download": stage_download, "merge": stage_merge}
+    fn = {"submit": stage_submit, "download": stage_download,
+          "merge": stage_merge, "set": stage_set}
     changed = fn[args.stage](tables, args)
     fields, rows = tables[changed]
     save(changed, fields, rows)
