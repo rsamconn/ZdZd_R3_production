@@ -60,6 +60,31 @@ The three stages never *downgrade* Status (e.g. running `download` on a row
 already at Merged keeps Merged); pass `--status <value>` on any subcommand to
 force a specific value.
 
+## Merged-file naming convention
+
+Merged Background Ntuples live in `/eos/.../hlrs/ZdZd/ZdZd13TeV_Ntuples/bkg_Ntuples/mc23_<Physics_process_short>/`
+and are named
+
+```
+<DSID>.<Physics_identifier>.<campaign>.<ptag>.<vtag>.root
+```
+
+e.g. `701185.Sh_2214_llll_m4l100_300_filt100_170.mc23d.p7266.v1.root`
+
+`<ptag>` is the derivation p-tag (last field of the row's `Tags` column).
+
+Fields are dot-separated (the identifier itself contains underscores). `<vtag>`
+is the Ntuple production version — bump it when the ZdZd13TeV code changes
+meaningfully; the tracker's `ZdZd13TeV_commit` column maps each vtag to the
+exact commit. Get the expected name for a row from the tracker itself:
+
+```bash
+python3 update_tracker.py name --dsid 701185 --campaign mc23d --vtag v1
+```
+
+The `merge` stage prints a warning if `--merged-file` doesn't match the row's
+expected pattern.
+
 ## Status page (GitHub Pages)
 
 Live at <https://rsamconn.github.io/ZdZd_R3_production/> — updates

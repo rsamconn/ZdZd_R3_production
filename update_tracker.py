@@ -13,6 +13,7 @@ Subcommands
   download   after `rucio download`
   merge      after merging the .root files
   set        edit arbitrary cells of one row directly
+  name       print the expected merged-file name for a row (edits nothing)
 
 Rows are identified by --dsid + --campaign, or (set only, also) by the full
 dataset name via --did.
@@ -65,6 +66,15 @@ Examples
   python3 update_tracker.py set \\
       --did mc23_13p6TeV:mc23_13p6TeV.701185.Sh_2214_llll_m4l100_300_filt100_170.deriv.DAOD_PHYS.e8543_s4159_r15224_p7266 \\
       --set "Notes=two files lost on site, re-downloaded" --set "Ntuple_files=97"
+
+  python3 update_tracker.py name --dsid 701185 --campaign mc23d --vtag v1
+  # -> 701185.Sh_2214_llll_m4l100_300_filt100_170.mc23d.p7266.v1.root
+
+Merged files follow the convention
+  <DSID>.<Physics_identifier>.<campaign>.<ptag>.<vtag>.root
+(<ptag> is taken from the last field of the row's Tags column)
+in /eos/.../bkg_Ntuples/mc23_<Physics_process_short>/ ; the merge stage warns
+if --merged-file does not match the row's expected pattern.
 
 Then:  git add data/ && git commit -m "601634 mc23d submitted" && git push
 """
@@ -236,6 +246,13 @@ def stage_merge(tables, args):
     merged = os.path.abspath(args.merged_file)
     if not os.path.isfile(merged):
         sys.exit(f"Not a file: {merged}")
+    expected_prefix = (f"{row['DSID']}.{row['Physics_identifier']}"
+                       f".{row['MC_campaign']}.{ptag(row)}.")
+    base = os.path.basename(merged)
+    if not (base.startswith(expected_prefix) and base.endswith(".root")):
+        print(f"WARNING: '{base}' does not follow the naming convention"
+              f" '{expected_prefix}<vtag>.root' (run the `name` subcommand"
+              " for the expected name)", file=sys.stderr)
     events, branches = inspect_merged(merged, args.tree)
     if events is None:
         print("WARNING: uproot not installed; branch-entry columns left blank"
@@ -250,6 +267,23 @@ def stage_merge(tables, args):
     })
     apply_status(row, path, "Merged", args.status)
     return path
+
+
+def ptag(row):
+    """Derivation p-tag: last field of the Tags column (e.g. ..._p7266 -> p7266)."""
+    return row["Tags"].split("_")[-1]
+
+
+def merged_name(row, vtag):
+    """Expected merged-file name for a row (naming convention)."""
+    return (f"{row['DSID']}.{row['Physics_identifier']}"
+            f".{row['MC_campaign']}.{ptag(row)}.{vtag}.root")
+
+
+def stage_name(tables, args):
+    path, row = find_row(tables, args.dsid, args.campaign, args.did)
+    print(merged_name(row, args.vtag))
+    return None  # nothing to save
 
 
 def stage_set(tables, args):
@@ -316,11 +350,21 @@ def main():
     e.add_argument("--set", action="append", required=True, metavar='"Column=Value"',
                    help="cell to set; repeatable")
 
+    n = sub.add_parser("name", help="print the expected merged-file name (edits nothing)")
+    common(n, need_key=False)
+    n.add_argument("--did", help="full dataset name (alternative to --dsid/--campaign)")
+    n.add_argument("--vtag", default="v1", help="Ntuple production version (default v1)")
+
     args = p.parse_args()
+    if args.stage in ("set", "name") and args.did is None and (
+            args.dsid is None or args.campaign is None):
+        sys.exit(f"{args.stage}: give either --did, or both --dsid and --campaign")
     tables = load_all(args.data_dir)
     fn = {"submit": stage_submit, "download": stage_download,
-          "merge": stage_merge, "set": stage_set}
+          "merge": stage_merge, "set": stage_set, "name": stage_name}
     changed = fn[args.stage](tables, args)
+    if changed is None:
+        return
     fields, rows = tables[changed]
     save(changed, fields, rows)
     print(f"Saved {changed}")
