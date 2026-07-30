@@ -9,11 +9,22 @@ listed in `data/manifest.json`). `index.html` is a static status page that
 renders them, served via GitHub Pages. This repo is the single source of truth —
 update the CSVs (normally via `update_tracker.py`), commit, push.
 
+**Remotes:** GitLab (<https://gitlab.cern.ch/connell/zdzd_r3_production>) is
+primary — push production updates there. GitHub
+(<https://github.com/rsamconn/ZdZd_R3_production>) is a secondary mirror,
+updated less frequently; it's kept around because GitHub Pages is still the
+main way people view progress, and the Google Sheet mirror imports from it
+(see below), so don't let it drift too far behind. The default branch on both
+is `master`.
+
 ## Workflow (on lxplus)
 
 ```bash
 # once:
-git clone https://github.com/rsamconn/ZdZd_R3_production.git
+git clone https://gitlab.cern.ch/connell/zdzd_r3_production.git
+# add the GitHub mirror as a second remote:
+git remote add github https://github.com/rsamconn/ZdZd_R3_production.git
+
 # 1. After grid submission (task ID printed by the submit script):
 python3 update_tracker.py submit --dsid 601634 --campaign mc23d \
     --job-id 45123678 --output-dataset user.<user>.601634.mc23d.p7266.v1 \
@@ -29,18 +40,22 @@ python3 update_tracker.py merge --dsid 601634 --campaign mc23d \
     --merged-file /eos/user/<u>/<user>/ntuples/p7266/601634_mc23d.root
     # events counted with uproot if available, else add --events N
 
-# Publish:
+# Publish (every time, to GitLab):
 git add data/ && git commit -m "601634 mc23d merged" && git push
+
+# Publish to GitHub (periodically, to refresh the status page / Sheet mirror):
+git push github master
 ```
 
 The script is stdlib-only (uproot optional). Rows are keyed by DSID +
-MC campaign. Manual edits to the CSVs (or via the GitHub web editor) are fine —
-just keep the header row intact.
+MC campaign. Manual edits to the CSVs (or via the GitHub/GitLab web editor)
+are fine — just keep the header row intact.
 
 ## Status page (GitHub Pages)
 
 Live at <https://rsamconn.github.io/ZdZd_R3_production/> — updates
-automatically ~a minute after each push to `main`.
+automatically ~a minute after each push to `master` on GitHub (so it lags
+behind GitLab until the periodic `git push github master`).
 
 Preview locally: `python3 -m http.server` in the repo root, then open
 <http://localhost:8000> (opening `index.html` directly won't work — `fetch` of
@@ -51,7 +66,7 @@ the CSVs needs a server).
 In a Google Sheet, one tab per process:
 
 ```
-=IMPORTDATA("https://raw.githubusercontent.com/rsamconn/ZdZd_R3_production/main/data/H_ZZ_4l.csv")
+=IMPORTDATA("https://raw.githubusercontent.com/rsamconn/ZdZd_R3_production/master/data/H_ZZ_4l.csv")
 ```
 
 Google refreshes IMPORTDATA roughly hourly. This mirror is a convenience view;
