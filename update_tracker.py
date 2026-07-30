@@ -44,9 +44,11 @@ How each column gets filled
   Ntuple_size [GB]      auto: byte sum of those files / 1e9
   Ntuple_events [k]     auto: uproot entry count of `merge --merged-file`,
                         else `merge --events`
-  hard_l_pdgId          auto at merge: entries in that branch (uproot),
-  truth_llll_tlv_pt       "missing" if the branch is absent; manual via `set`
-  llll_tlv_pt             if uproot is unavailable
+  hard_l_pdgId          auto at merge (uproot): total stored values in the
+  truth_llll_tlv_pt       branch, flattened over vectors -- the same count as
+  llll_tlv_pt             TTree::Draw("branch"); htemp->GetEntries().
+                          "missing" if the branch is absent; manual via `set`
+                          if uproot is unavailable
   Merged_file_path      auto: abspath of `merge --merged-file`
   Notes                 manual via `set --set "Notes=..."` (or any column:
                         `set --set "Column=Value"`, repeatable)
@@ -93,6 +95,7 @@ DEFAULT_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dat
 DEFAULT_ATH_RELEASE = "AthAnalysis,25.2.102"
 CODE_DIR_ENV = "ZDZD13TEV_DIR"
 BRANCH_COLS = ["hard_l_pdgId", "truth_llll_tlv_pt", "llll_tlv_pt"]
+DEFAULT_TREE = "Nominal/llllTree"
 
 STATUS_RANK = {"Not submitted": 0, "Submitted": 1, "Running": 2, "Finished": 3,
                "Failed": 3, "Downloaded": 4, "Merged": 5, "Done": 6}
@@ -221,8 +224,20 @@ def stage_download(tables, args):
     return path
 
 
+def branch_draw_entries(tree, branch):
+    """Total number of stored values in a branch, flattened over any vectors —
+    the same count TTree::Draw("branch") reports via htemp->GetEntries()."""
+    if branch not in tree:
+        return "missing"
+    arr = tree[branch].array(library="np")
+    if arr.dtype == object:  # jagged: one histogram entry per element
+        return int(sum(len(x) for x in arr))
+    return int(arr.size)
+
+
 def inspect_merged(path, tree_name):
-    """Return (events, {branch: entries or 'missing'}) via uproot, or (None, {})."""
+    """Return (events, {branch: Draw-style entries or 'missing'}) via uproot,
+    or (None, {}) if uproot is unavailable."""
     try:
         import uproot
     except ImportError:
@@ -233,11 +248,15 @@ def inspect_merged(path, tree_name):
         else:
             trees = sorted({k.split(";")[0] for k, v in f.classnames().items()
                             if v.startswith("TTree")})
-            if len(trees) != 1:
+            if len(trees) == 1:
+                tree = f[trees[0]]
+            elif DEFAULT_TREE in trees:
+                print(f"Multiple trees found; using '{DEFAULT_TREE}'"
+                      " (override with --tree)")
+                tree = f[DEFAULT_TREE]
+            else:
                 sys.exit(f"Found trees {trees} in {path}; pick one with --tree")
-            tree = f[trees[0]]
-        branches = {b: (tree[b].num_entries if b in tree else "missing")
-                    for b in BRANCH_COLS}
+        branches = {b: branch_draw_entries(tree, b) for b in BRANCH_COLS}
         return tree.num_entries, branches
 
 
@@ -341,7 +360,8 @@ def main():
     m = sub.add_parser("merge", help="stage 3: record merged Ntuple")
     common(m)
     m.add_argument("--merged-file", required=True, help="path to merged .root file")
-    m.add_argument("--tree", help="TTree name (default: auto if file has exactly one)")
+    m.add_argument("--tree", help="TTree path, e.g. 'Nominal/llllTree' (default: "
+                                  f"the only tree in the file, else '{DEFAULT_TREE}')")
     m.add_argument("--events", type=int, help="total events, overrides/replaces uproot count")
 
     e = sub.add_parser("set", help="edit specific cells of one row")
