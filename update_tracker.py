@@ -26,8 +26,8 @@ How each column gets filled
 ---------------------------
   DID ... Events [k]    fixed input-dataset info; edit only via `set` if a
                         dataset is replaced
-  Job_ID                `submit --job-id`
-  Job_link              auto from Job_ID (bigpanda.cern.ch/task/<ID>/)
+  JediTask_ID           `submit --task-id`
+  Job_link              auto from JediTask_ID (bigpanda.cern.ch/task/<ID>/)
   Status                auto per stage (Submitted / Downloaded / Merged),
                         never downgraded; manual via --status on any
                         subcommand or `set --set "Status=..."`
@@ -56,7 +56,7 @@ How each column gets filled
 Examples
 --------
   python3 update_tracker.py submit --dsid 601634 --campaign mc23d \\
-      --job-id 45123678 --output-dataset user.rconn.601634.mc23d.p7266.v1 \\
+      --task-id 45123678 --output-dataset user.rconn.601634.mc23d.p7266.v1 \\
       --code-dir ~/ZdZd13TeV
 
   python3 update_tracker.py download --dsid 601634 --campaign mc23d \\
@@ -191,8 +191,8 @@ def stage_submit(tables, args):
         ath_release = DEFAULT_ATH_RELEASE
         print(f"Athena_release not given; defaulting to {ath_release}")
     set_fields(row, path, {
-        "Job_ID": args.job_id,
-        "Job_link": BIGPANDA.format(args.job_id),
+        "JediTask_ID": args.task_id,
+        "Job_link": BIGPANDA.format(args.task_id),
         "ZdZd13TeV_commit": commit,
         "Athena_release": ath_release,
         "Submitted_by": args.user or getpass.getuser(),
@@ -343,7 +343,7 @@ def main():
 
     s = sub.add_parser("submit", help="stage 1: record grid submission")
     common(s)
-    s.add_argument("--job-id", required=True, help="PanDA JEDI task ID")
+    s.add_argument("--task-id", required=True, help="PanDA JEDI task ID")
     s.add_argument("--commit", help="ZdZd13TeV commit hash; default: git rev-parse in --code-dir")
     s.add_argument("--code-dir", help=f"ZdZd13TeV checkout (default ${CODE_DIR_ENV}) "
                                       "used to auto-read the commit hash")

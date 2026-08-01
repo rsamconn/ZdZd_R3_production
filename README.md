@@ -27,7 +27,7 @@ git remote add github https://github.com/rsamconn/ZdZd_R3_production.git
 
 # 1. After grid submission (task ID printed by the submit script):
 python3 update_tracker.py submit --dsid 601634 --campaign mc23d \
-    --job-id 45123678 --output-dataset user.<user>.601634.mc23d.p7266.v1 \
+    --task-id 45123678 --output-dataset user.<user>.601634.mc23d.p7266.v1 \
     --code-dir /path/to/ZdZd13TeV  # -> ZdZd13TeV_commit via `git rev-parse`
 # (or set $ZDZD13TEV_DIR once instead of --code-dir, or pass --commit directly)
 
@@ -124,8 +124,8 @@ script-driven routes.
 | Column | Meaning | Auto | Manual |
 |---|---|---|---|
 | DID … Events [k] | input DAOD_PHYS dataset details (p7266) | initial import | `set` only |
-| Job_ID | PanDA JEDI task ID | — | `submit --job-id` (required) |
-| Job_link | BigPanDA URL | from Job_ID at `submit` | `set` |
+| JediTask_ID | PanDA JEDI task ID | — | `submit --task-id` (required) |
+| Job_link | BigPanDA URL | from JediTask_ID at `submit` | `set` |
 | Status | Not submitted → Submitted → Running → Finished / Failed → Downloaded → Merged → Done | `submit`/`download`/`merge` set Submitted/Downloaded/Merged, never downgrading | `--status <value>` on any subcommand (always wins) |
 | ZdZd13TeV_commit | ZdZd13TeV commit hash used | `git rev-parse --short=12 HEAD` in `submit --code-dir` (or `$ZDZD13TEV_DIR`) | `submit --commit` |
 | Athena_release | asetup release | defaults to `AthAnalysis,25.2.102` at `submit` (message printed) | `submit --ath-release` |

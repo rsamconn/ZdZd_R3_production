@@ -88,7 +88,7 @@ function parseCSV(text) {
 }
 
 const SHOW = ["DSID", "Physics_identifier", "MC_campaign", "Files", "Size [GB]",
-  "Events [k]", "Job_ID", "Status", "ZdZd13TeV_commit", "Athena_release", "Submitted_by",
+  "Events [k]", "JediTask_ID", "Status", "ZdZd13TeV_commit", "Athena_release", "Submitted_by",
   "Submitted_date", "Finished_date", "Ntuple_files", "Ntuple_size [GB]",
   "Ntuple_events", "hard_l_pdgId", "truth_llll_tlv_pt", "llll_tlv_pt",
   "Merged_file_path", "Notes"];
@@ -137,7 +137,7 @@ async function main() {
       html += "<tr>" + SHOW.map(h => {
         let v = get(h);
         if (h === "Status") return `<td>${statusHTML(st)}</td>`;
-        if (h === "Job_ID" && v) {
+        if (h === "JediTask_ID" && v) {
           const link = get("Job_link") || `https://bigpanda.cern.ch/task/${v}/`;
           return `<td><a href="${esc(link)}" target="_blank" rel="noopener">${esc(v)}</a></td>`;
         }
