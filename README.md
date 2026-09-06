@@ -62,7 +62,7 @@ force a specific value.
 
 ## Merged-file naming convention
 
-Merged Background Ntuples live in `/eos/.../hlrs/ZdZd/ZdZd13TeV_Ntuples/bkg_Ntuples/mc23_<Physics_process_short>/`
+Merged Background Ntuples live in `/eos/atlas/atlascerngroupdisk/phys-hmbs/hlrs/ZdZd/ZdZd13TeV_Ntuples/bkg_Ntuples/<Physics_process_short>/`
 and are named
 
 ```
